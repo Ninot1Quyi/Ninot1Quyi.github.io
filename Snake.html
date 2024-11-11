@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>自动寻路贪吃蛇游戏</title>
+    <style>
+        /* 引入Roboto字体 */
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+
+        body {
+            background-color: #2c3e50;
+            font-family: 'Roboto', Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            min-height: 100vh;
+            color: #ecf0f1;
+        }
+
+        /* 顶部信息栏 */
+        #top-bar {
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .info-card {
+            display: flex;
+            align-items: center;
+            background-color: #ecf0f1;
+            color: #2c3e50;
+            padding: 10px 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            font-weight: bold;
+            flex: 1;
+            margin-right: 10px;
+            transition: transform 0.3s;
+        }
+
+        .info-card:last-child {
+            margin-right: 0;
+        }
+
+        .info-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .info-icon {
+            margin-right: 8px;
+            font-size: 20px;
+        }
+
+        /* 图标使用Unicode字符或Emoji */
+        .algorithm-icon::before {
+            content: "🔍";
+        }
+
+        .score-icon::before {
+            content: "🏆";
+        }
+
+        /* 游戏容器 */
+        #game-container {
+            position: relative;
+            width: 400px;
+            height: 400px;
+            background-color: #34495e; /* 地图背景色 */
+            border-radius: 20px;
+            box-shadow:
+                     0 16px 32px rgba(0, 0, 0, 0.4),
+                    0 0 30px 15px rgb(56, 58, 60);
+            margin-bottom: 20px;
+            transition: box-shadow 0.3s, transform 0.3s;
+            transform: translateZ(0); /* 触发GPU加速 */
+        }
+
+        /* 游戏区域的突出显示效果 */
+        #game-container:hover {
+            box-shadow:
+                    0 16px 32px rgba(0, 0, 0, 0.1),
+                    0 0 30px 15px rgb(62, 68, 71);
+            transform: scale(1.02);
+        }
+
+        #gameCanvas {
+            background-color: #2c3e50; /* 与容器不同的颜色 */
+            border-radius: 20px;
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        #game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 36px;
+            font-weight: bold;
+            color: #e74c3c;
+            display: none;
+            pointer-events: none;
+            z-index: 2;
+            background-color: rgba(236, 240, 241, 0.9);
+            padding: 20px 30px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        #controls {
+            width: 100%;
+            max-width: 500px;
+            background-color: #ecf0f1;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+            width: 100%;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 700;
+            color: #2c3e50;
+        }
+
+        /* 滑动条样式 */
+        .control-group input[type="range"] {
+            width: 100%;
+            padding: 5px;
+            box-sizing: border-box;
+            -webkit-appearance: none;
+            appearance: none;
+            height: 8px;
+            border-radius: 5px;
+            background: linear-gradient(to right, #3498db 0%, #3498db var(--range-value), #bdc3c7 var(--range-value), #bdc3c7 100%);
+            outline: none;
+            transition: background 0.3s;
+        }
+
+        /* 滑动条滑块样式 */
+        .control-group input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #3498db;
+            cursor: pointer;
+            transition: background 0.3s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .control-group input[type="range"]::-webkit-slider-thumb:hover {
+            background: #2980b9;
+        }
+
+        /* 对于非Webkit浏览器 */
+        .control-group input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #3498db;
+            cursor: pointer;
+            transition: background 0.3s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .control-group input[type="range"]::-moz-range-thumb:hover {
+            background: #2980b9;
+        }
+
+        .algorithm-buttons, #action-buttons {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+        }
+
+        .algorithm-buttons button, #action-buttons button {
+            flex: 1;
+            margin-right: 10px;
+            padding: 10px;
+            cursor: pointer;
+            border: none;
+            background-color: #3498db;
+            color: #ecf0f1;
+            border-radius: 5px;
+            font-weight: 700;
+            transition: background-color 0.3s, transform 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .algorithm-buttons button:last-child, #action-buttons button:last-child {
+            margin-right: 0;
+        }
+
+        .algorithm-buttons button:hover, #action-buttons button:hover {
+            background-color: #2980b9;
+            transform: translateY(-2px);
+        }
+
+        .algorithm-buttons button.selected {
+            background-color: #2ecc71;
+        }
+
+        #action-buttons button {
+            background-color: #e67e22;
+        }
+
+        #action-buttons button:hover {
+            background-color: #d35400;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 600px) {
+            #game-container {
+                width: 90vw;
+                height: 90vw;
+            }
+
+            #top-bar, #controls {
+                max-width: 100vw;
+            }
+
+            #score {
+                width: 100px;
+            }
+        }
+    </style>
+</head>
+<body>
+<div id="top-bar">
+    <div class="info-card">
+        <span class="info-icon algorithm-icon"></span>
+        <span id="status">当前算法: 深度优先搜索</span>
+
+    </div>
+    <div class="info-card">
+        <span class="info-icon score-icon"></span>
+        <span id="score">得分: 0</span>
+    </div>
+</div>
+<div id="game-container" tabindex="0">
+    <canvas id="gameCanvas" width="400" height="400"></canvas>
+    <div id="game-over">游戏结束</div>
+</div>
+<div id="controls">
+    <div class="control-group">
+        <label for="obstacleCount">障碍物数量: <span id="obstacleCountValue">10</span></label>
+        <input id="obstacleCount" type="range" min="0" max="50" value="10" oninput="updateObstacleCount()">
+    </div>
+    <div class="control-group">
+        <label for="speedControl">蛇运行速度 (毫秒): <span id="speedControlValue">100</span></label>
+        <input id="speedControl" type="range" min="5" max="150" value="100" oninput="updateSpeed()">
+    </div>
+    <div class="control-group">
+        <label>选择寻路算法:</label>
+        <div class="algorithm-buttons">
+            <button id="dfsButton" onclick="setAlgorithm('dfs')">深度优先搜索</button>
+            <button id="astarButton" onclick="setAlgorithm('astar')">A*算法</button>
+            <button id="greedyButton" onclick="setAlgorithm('greedy')">贪心最佳优先搜索</button>
+        </div>
+    </div>
+    <div class="control-group">
+        <div id="action-buttons">
+            <button onclick="restartGame()">重新开始游戏</button>
+            <button onclick="pauseGame()">暂停/继续游戏</button>
+        </div>
+    </div>
+</div>
+<script>
+    'use strict';
+
+    // 获取画布和上下文
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // 网格大小和网格数量
+    const gridSize = 20;
+    const tileCount = canvas.width / gridSize;
+
+    // 蛇、食物和障碍物的数据结构
+    let snake = [];
+    let food = {};
+    let obstacles = [];
+    let currentAlgorithm = 'dfs';
+
+    // 游戏控制变量
+    let gameInterval;
+    let currentPath = null;
+    let isPaused = false;
+    let score = 0;
+
+    // 方向向量
+    const directions = [
+        {x:0, y:-1}, // 上
+        {x:1, y:0},  // 右
+        {x:0, y:1},  // 下
+        {x:-1, y:0}  // 左
+    ];
+
+    /**
+     * 随机打乱数组顺序（Fisher-Yates Shuffle）
+     * @param {Array} array - 要打乱的数组
+     */
+    function shuffleArray(array) {
+        for (let i = array.length -1; i >0; i--) {
+            const j = Math.floor(Math.random() * (i+1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+    }
+
+    // 初始化游戏
+    function startGame() {
+        snake = [{x: Math.floor(tileCount / 2), y: Math.floor(tileCount / 2)}];
+        score = 0;
+        updateScore();
+        generateObstacles(); // 先生成障碍物
+        generateFood(); // 再生成食物，确保可达
+        currentPath = null; // 重置路径
+        if (gameInterval) clearInterval(gameInterval);
+        gameInterval = setInterval(gameLoop, parseInt(document.getElementById('speedControl').value));
+        updateStatus();
+        hideGameOver();
+    }
+
+    // 重新开始游戏
+    function restartGame() {
+        clearInterval(gameInterval);
+        startGame();
+    }
+
+    // 暂停/继续游戏
+    function pauseGame() {
+        if (isPaused) {
+            gameInterval = setInterval(gameLoop, parseInt(document.getElementById('speedControl').value));
+            updateStatus();
+        } else {
+            clearInterval(gameInterval);
+            updateStatus("已暂停");
+        }
+        isPaused = !isPaused;
+    }
+
+    // 更新蛇运行速度
+    function updateSpeed() {
+        const speed = parseInt(document.getElementById('speedControl').value);
+        document.getElementById('speedControlValue').innerText = speed;
+        document.getElementById('speedControl').style.setProperty('--range-value', `${(speed - 5) / (150 - 5) * 100}%`);
+        clearInterval(gameInterval);
+        if (!isPaused) {
+            gameInterval = setInterval(gameLoop, speed);
+        }
+    }
+
+    // 更新障碍物数量
+    function updateObstacleCount() {
+        const count = parseInt(document.getElementById('obstacleCount').value);
+        document.getElementById('obstacleCountValue').innerText = count;
+        document.getElementById('obstacleCount').style.setProperty('--range-value', `${count / 50 * 100}%`);
+        generateObstacles();
+        generateFood(); // 重新生成食物，确保可达
+        currentPath = null; // 重置路径以重新寻路
+    }
+
+    /**
+     * 生成食物，确保食物不与蛇和障碍物重叠，并且可达
+     */
+    function generateFood() {
+        const availableCells = [];
+
+        for (let x = 0; x < tileCount; x++) {
+            for (let y = 0; y < tileCount; y++) {
+                if (!isOccupied(x, y)) {
+                    availableCells.push({x, y});
+                }
+            }
+        }
+
+        if (availableCells.length === 0) {
+            // 无可用位置，游戏胜利
+            endGame(true);
+            return;
+        }
+
+        shuffleArray(availableCells);
+
+        for (const cell of availableCells) {
+            const path = findPath(snake[0], cell);
+            if (path) {
+                food = cell;
+                return;
+            }
+        }
+
+        // 如果没有可达的食物位置，游戏胜利
+        endGame(true);
+    }
+
+    // 检查位置是否被占用
+    function isOccupied(x, y) {
+        for (const segment of snake) {
+            if (segment.x === x && segment.y === y) return true;
+        }
+        for (const obstacle of obstacles) {
+            if (obstacle.x === x && obstacle.y === y) return true;
+        }
+        return false;
+    }
+
+    /**
+     * 生成障碍物，确保障碍物不生成在蛇的身体上
+     * 以及不生成在蛇头周围的8个格子内
+     */
+    function generateObstacles() {
+        obstacles = [];
+        const desiredObstacleCount = parseInt(document.getElementById('obstacleCount').value) || 10;
+        const forbiddenCells = getForbiddenCells();
+
+        while (obstacles.length < desiredObstacleCount) {
+            let obstacle;
+            let valid = false;
+            let attempts = 0;
+            const maxAttempts = 1000; // 防止无限循环
+
+            while (!valid && attempts < maxAttempts) {
+                obstacle = {
+                    x: Math.floor(Math.random() * tileCount),
+                    y: Math.floor(Math.random() * tileCount)
+                };
+                const key = `${obstacle.x},${obstacle.y}`;
+                // 确保障碍物不在蛇的身体上，也不在禁止生成的格子内
+                if (!isOccupied(obstacle.x, obstacle.y) && !forbiddenCells.has(key)) {
+                    valid = true;
+                }
+                attempts++;
+            }
+
+            if (valid) {
+                obstacles.push(obstacle);
+            } else {
+                console.warn('无法生成足够的障碍物，尝试减少障碍物数量。');
+                break;
+            }
+        }
+    }
+
+    /**
+     * 获取蛇头周围的8个格子
+     * @returns {Set} 禁止生成障碍物的格子坐标集合
+     */
+    function getForbiddenCells() {
+        const forbidden = new Set();
+        if (snake.length === 0) return forbidden;
+        const head = snake[0];
+        const headX = head.x;
+        const headY = head.y;
+
+        for (let dx = -1; dx <= 1; dx++) {
+            for (let dy = -1; dy <= 1; dy++) {
+                if (dx === 0 && dy === 0) continue; // 排除蛇头自身
+                const nx = headX + dx;
+                const ny = headY + dy;
+                if (nx >= 0 && nx < tileCount && ny >= 0 && ny < tileCount) {
+                    forbidden.add(`${nx},${ny}`);
+                }
+            }
+        }
+        return forbidden;
+    }
+
+    // 游戏主循环
+    function gameLoop() {
+        try {
+            const path = findPath(snake[0], food);
+            if (path) {
+                // 仅在新路径比当前路径更短时才更新
+                if (!currentPath || path.length < currentPath.length) {
+                    currentPath = path;
+                }
+
+                if (currentPath && currentPath.length > 1) {
+                    const nextMove = currentPath[1];
+                    snake.unshift({x: nextMove.x, y: nextMove.y});
+                    if (nextMove.x === food.x && nextMove.y === food.y) {
+                        score += 1;
+                        updateScore();
+                        generateObstacles(); // 先生成障碍物
+                        generateFood(); // 再生成食物，确保可达
+                        currentPath = null;
+                    } else {
+                        snake.pop();
+                        currentPath.shift();
+                    }
+                } else {
+                    endGame();
+                    return;
+                }
+            } else {
+                endGame();
+                return;
+            }
+
+            if (isGameOver()) {
+                endGame();
+                return;
+            }
+
+            drawGame(currentPath);
+        } catch (error) {
+            console.error('游戏循环出错:', error);
+            clearInterval(gameInterval);
+            alert('游戏出现错误，请检查控制台以获取详细信息。');
+        }
+    }
+
+    // 检查游戏是否结束
+    function isGameOver() {
+        const head = snake[0];
+        // 检查是否撞到自身
+        for (let i = 1; i < snake.length; i++) {
+            if (snake[i].x === head.x && snake[i].y === head.y) {
+                return true;
+            }
+        }
+        // 检查是否撞到障碍物
+        for (const obstacle of obstacles) {
+            if (obstacle.x === head.x && obstacle.y === head.y) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // 结束游戏
+    function endGame(victory = false) {
+        clearInterval(gameInterval);
+        showGameOver(victory);
+    }
+
+    // 显示游戏结束
+    function showGameOver(victory) {
+        const gameOverDiv = document.getElementById('game-over');
+        gameOverDiv.innerText = '游戏结束';
+        gameOverDiv.style.display = 'block';
+    }
+
+    // 隐藏游戏结束
+    function hideGameOver() {
+        const gameOverDiv = document.getElementById('game-over');
+        gameOverDiv.style.display = 'none';
+    }
+
+    // 更新得分显示
+    function updateScore() {
+        document.getElementById('score').innerText = `得分: ${score}`;
+    }
+
+    // 更新状态显示
+    function updateStatus(additionalInfo = "") {
+        let statusText = `当前算法: ${getAlgorithmName(currentAlgorithm)}`;
+        if (additionalInfo) {
+            statusText += ` (${additionalInfo})`;
+        }
+        document.getElementById('status').innerText = statusText;
+    }
+
+    // 查找路径
+    function findPath(start, goal) {
+        if (currentAlgorithm === 'dfs') {
+            return dfs(start, goal);
+        } else if (currentAlgorithm === 'astar') {
+            return astar(start, goal);
+        } else if (currentAlgorithm === 'greedy') {
+            return greedyBestFirstSearch(start, goal);
+        }
+        return null;
+    }
+
+    // 深度优先搜索 (DFS)
+    function dfs(start, goal) {
+        const stack = [];
+        const visited = {};
+        const cameFrom = {};
+        stack.push(start);
+        visited[`${start.x},${start.y}`] = true;
+
+        const directionOrder = getDirectionOrder(start, goal);
+
+        while (stack.length > 0) {
+            const current = stack.pop();
+            if (current.x === goal.x && current.y === goal.y) {
+                return reconstructPath(cameFrom, current);
+            }
+
+            const neighbors = getNeighbors(current, directionOrder);
+            for (const neighbor of neighbors) {
+                const key = `${neighbor.x},${neighbor.y}`;
+                if (!visited[key]) {
+                    visited[key] = true;
+                    cameFrom[key] = current;
+                    stack.push(neighbor);
+                }
+            }
+        }
+        return null;
+    }
+
+    // 获取方向顺序，优先朝向目标方向
+    function getDirectionOrder(start, goal) {
+        const dx = goal.x - start.x;
+        const dy = goal.y - start.y;
+        const order = directions.slice();
+
+        order.sort((a, b) => {
+            const aDist = Math.abs(a.x * dx) + Math.abs(a.y * dy);
+            const bDist = Math.abs(b.x * dx) + Math.abs(b.y * dy);
+            return bDist - aDist;
+        });
+
+        return order;
+    }
+
+    // A* 算法
+    function astar(start, goal) {
+        const openSet = [];
+        const cameFrom = {};
+        const gScore = {};
+        const fScore = {};
+        const visited = {};
+
+        const startKey = `${start.x},${start.y}`;
+        gScore[startKey] = 0;
+        fScore[startKey] = heuristic(start, goal);
+
+        openSet.push({node: start, fScore: fScore[startKey]});
+
+        while (openSet.length > 0) {
+            openSet.sort((a, b) => a.fScore - b.fScore);
+            const current = openSet.shift().node;
+            const currentKey = `${current.x},${current.y}`;
+
+            if (current.x === goal.x && current.y === goal.y) {
+                return reconstructPath(cameFrom, current);
+            }
+
+            visited[currentKey] = true;
+
+            const neighbors = getNeighbors(current);
+            for (const neighbor of neighbors) {
+                const neighborKey = `${neighbor.x},${neighbor.y}`;
+
+                if (visited[neighborKey]) continue;
+
+                const tentative_gScore = gScore[currentKey] + 1;
+
+                if (gScore[neighborKey] === undefined || tentative_gScore < gScore[neighborKey]) {
+                    cameFrom[neighborKey] = current;
+                    gScore[neighborKey] = tentative_gScore;
+                    fScore[neighborKey] = gScore[neighborKey] + heuristic(neighbor, goal);
+
+                    if (!openSet.some(n => n.node.x === neighbor.x && n.node.y === neighbor.y)) {
+                        openSet.push({node: neighbor, fScore: fScore[neighborKey]});
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    // 贪心最佳优先搜索 (Greedy Best-First Search)
+    function greedyBestFirstSearch(start, goal) {
+        const openSet = [];
+        const cameFrom = {};
+        const visited = {};
+
+        openSet.push(start);
+        visited[`${start.x},${start.y}`] = true;
+
+        while (openSet.length > 0) {
+            // 按照启发式函数排序，贪心选择最接近目标的节点
+            openSet.sort((a, b) => heuristic(a, goal) - heuristic(b, goal));
+            const current = openSet.shift();
+
+            if (current.x === goal.x && current.y === goal.y) {
+                return reconstructPath(cameFrom, current);
+            }
+
+            const neighbors = getNeighbors(current);
+            for (const neighbor of neighbors) {
+                const key = `${neighbor.x},${neighbor.y}`;
+                if (!visited[key]) {
+                    visited[key] = true;
+                    cameFrom[key] = current;
+                    openSet.push(neighbor);
+                }
+            }
+        }
+        return null;
+    }
+
+    // 曼哈顿距离启发式函数
+    function heuristic(a, b) {
+        return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+    }
+
+    // 路径重建函数
+    function reconstructPath(cameFrom, current) {
+        const path = [current];
+        let key = `${current.x},${current.y}`;
+        while (cameFrom[key]) {
+            current = cameFrom[key];
+            path.unshift(current);
+            key = `${current.x},${current.y}`;
+        }
+        return path;
+    }
+
+    /**
+     * 获取邻居节点
+     * @param {Object} node - 当前节点
+     * @param {Array} [customDirections] - 自定义方向顺序
+     * @returns {Array} 邻居节点数组
+     */
+    function getNeighbors(node, customDirections) {
+        const result = [];
+        const directionSet = customDirections || directions;
+        for (const dir of directionSet) {
+            const nx = node.x + dir.x;
+            const ny = node.y + dir.y;
+            if (nx >= 0 && nx < tileCount && ny >= 0 && ny < tileCount && !isOccupied(nx, ny)) {
+                result.push({x: nx, y: ny});
+            }
+        }
+        return result;
+    }
+
+    // 绘制游戏
+    function drawGame(path) {
+        // 清空画布
+        ctx.fillStyle = '#34495e'; // 地图背景色
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // 绘制路径
+        if (path) {
+            drawPath(path);
+        }
+
+        // 绘制障碍物
+        for (const obstacle of obstacles) {
+            ctx.save();
+            ctx.fillStyle = '#7f8c8d';
+            ctx.shadowColor = 'rgba(0,0,0,0.5)';
+            ctx.shadowBlur = 4;
+            ctx.shadowOffsetX = 2;
+            ctx.shadowOffsetY = 2;
+            ctx.fillRect(obstacle.x * gridSize, obstacle.y * gridSize, gridSize - 2, gridSize - 2);
+            ctx.restore();
+        }
+
+        // 绘制食物
+        ctx.fillStyle = '#e74c3c';
+        ctx.fillRect(food.x * gridSize, food.y * gridSize, gridSize - 2, gridSize - 2);
+
+        // 显示食物位置的路径长度
+        ctx.fillStyle = '#ecf0f1';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(path ? path.length : 0, food.x * gridSize + gridSize / 2, food.y * gridSize + gridSize / 2);
+
+        // 绘制蛇
+        for (let i = 0; i < snake.length; i++) {
+            if (i === 0) {
+                ctx.fillStyle = '#27ae60'; // 蛇头颜色
+            } else {
+                const gradientFactor = i / snake.length;
+                ctx.fillStyle = `rgba(46, 204, 113, ${1 - gradientFactor * 0.7})`;
+            }
+            ctx.fillRect(snake[i].x * gridSize, snake[i].y * gridSize, gridSize - 2, gridSize - 2);
+        }
+    }
+
+    // 绘制所有算法的路径为绿色
+    function drawPath(path) {
+        ctx.strokeStyle = '#2ecc71'; // 绿色路径
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        for (let i = 0; i < path.length - 1; i++) {
+            const from = path[i];
+            const to = path[i + 1];
+            ctx.moveTo(from.x * gridSize + gridSize / 2, from.y * gridSize + gridSize / 2);
+            ctx.lineTo(to.x * gridSize + gridSize / 2, to.y * gridSize + gridSize / 2);
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.lineWidth = 1;
+    }
+
+    // 设置寻路算法
+    function setAlgorithm(algorithm) {
+        if (currentAlgorithm !== algorithm) {
+            currentAlgorithm = algorithm;
+            currentPath = null; // 重置路径以适应新的算法
+            highlightSelectedButton();
+            updateStatus();
+        }
+    }
+
+    // 获取算法名称
+    function getAlgorithmName(algorithm) {
+        if (algorithm === 'dfs') return '深度优先搜索';
+        if (algorithm === 'astar') return 'A*算法';
+        if (algorithm === 'greedy') return '贪心最佳优先搜索';
+        return '未知算法';
+    }
+
+    // 高亮显示当前选中的算法按钮
+    function highlightSelectedButton() {
+        document.getElementById('dfsButton').classList.remove('selected');
+        document.getElementById('astarButton').classList.remove('selected');
+        document.getElementById('greedyButton').classList.remove('selected');
+
+        if (currentAlgorithm === 'dfs') {
+            document.getElementById('dfsButton').classList.add('selected');
+        } else if (currentAlgorithm === 'astar') {
+            document.getElementById('astarButton').classList.add('selected');
+        } else if (currentAlgorithm === 'greedy') {
+            document.getElementById('greedyButton').classList.add('selected');
+        }
+    }
+
+    // 初始化游戏
+    window.onload = function() {
+        startGame();
+        highlightSelectedButton();
+        // 初始化滑动条填充
+        document.getElementById('speedControl').style.setProperty('--range-value', `${(parseInt(document.getElementById('speedControl').value) - 5) / (150 - 5) * 100}%`);
+        document.getElementById('obstacleCount').style.setProperty('--range-value', `${parseInt(document.getElementById('obstacleCount').value) / 50 * 100}%`);
+    };
+</script>
+</body>
+</html>
